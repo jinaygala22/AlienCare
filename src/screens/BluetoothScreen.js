@@ -3,8 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing,
 import { ChevronLeft, Bluetooth, Smartphone, BatteryMedium, CheckCircle2 } from 'lucide-react-native';
 import GradientBackground from '../components/GradientBackground';
 import { COLORS, SPACING } from '../constants/theme';
-import { requestBluetoothPermission, scanForDevices, connectToGivenDevice, isBleAvailable } from '../../BLE_connection/TherapyBle';
+import {
+    requestBluetoothPermission,
+    scanForDevices,
+    connectToGivenDevice,
+    isBleAvailable,
+    writeUserName
+} from '../../BLE_connection/TherapyBle';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const BluetoothScreen = ({ navigation, route }) => {
     const username = route?.params?.username || '';
     const selectedDevice = 'Smart Band';
@@ -108,19 +115,54 @@ const BluetoothScreen = ({ navigation, route }) => {
         }).start();
     }, [currentStep, progressAnim, steps.length]);
 
-    const handleDeviceSelect = (device) => {
-        setIsConnecting(true);
-        connectToGivenDevice(device, (success) => {
-            setIsConnecting(false);
-            if(success) {
-                setIsBluetoothConnected(true);
-                setIsPowerConfirmed(true); // If it connected, it's definitely powered ON
-                setCurrentStep(2); // Jump straight to confirming setup completion
-            } else {
-                Alert.alert("Connection Failed", "Could not pair or connect. Please ensure the device is on and in range.");
+    const handleDeviceSelect = async (device) => {
+    setIsConnecting(true);
+
+    connectToGivenDevice(device, async (success) => {
+        setIsConnecting(false);
+
+        if (success) {
+
+            try {
+                let savedName = null;
+
+                try {
+                    savedName = await AsyncStorage.getItem('username');
+                } catch (e) {
+                    console.log('AsyncStorage username not found');
+                }
+
+                if (!savedName || savedName.trim() === '') {
+                    savedName = username;
+                }
+
+                if (!savedName || savedName.trim() === '') {
+                    savedName = 'Guest';
+                }
+
+                console.log('Sending username to band:', savedName);
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await writeUserName(savedName);
+
+                console.log('Username sent successfully');
             }
-        });
-    };
+            catch (err) {
+                console.log('Failed to send username:', err);
+            }
+
+            setIsBluetoothConnected(true);
+            setIsPowerConfirmed(true);
+            setCurrentStep(2);
+        }
+        else {
+            Alert.alert(
+                "Connection Failed",
+                "Could not pair or connect. Please ensure the device is on and in range."
+            );
+        }
+    });
+};
 
     const handleStepAction = () => {
         if (currentStep === 0) {

@@ -30,7 +30,8 @@ const TEMP_UUID = "a0000002-0000-0000-0000-000000000002";
 const MODE_UUID = "a0000003-0000-0000-0000-000000000003";
 const SET_UUID = "a0000004-0000-0000-0000-000000000004";
 const TIMER_UUID = "a0000005-0000-0000-0000-000000000005";
-
+// Add this with your other UUID constants (around line 24)
+const NAME_UUID = "a0000006-0000-0000-0000-000000000006";
 // --------------------
 // ANDROID PERMISSION
 // --------------------
@@ -200,7 +201,22 @@ export async function stopTherapy() {
   await sendCommand(MODE_UUID, "OFF");
   await sendCommand(TIMER_UUID, "0");
 }
+// Add this new exported function after stopTherapy()
+export async function writeUserName(name) {
+  console.log('[BLE] Writing username:', name);
 
+  if (!name) {
+    console.log('[BLE] Username empty');
+    return;
+  }
+
+  if (!deviceConnected) {
+    console.log('[BLE] No connected device');
+    return;
+  }
+
+  await sendCommand(NAME_UUID, name);
+}
 // --------------------
 // TEMPERATURE MONITORING
 // --------------------

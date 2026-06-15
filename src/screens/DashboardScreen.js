@@ -45,7 +45,8 @@ import {
     onDeviceDisconnect,
     requestBluetoothPermission, 
     scanForDevices, 
-    connectToGivenDevice 
+    connectToGivenDevice,
+    writeUserName
 } from '../../BLE_connection/TherapyBle';
 const DashboardScreen = ({ navigation, route }) => {
     const SESSION_STATE_KEY = 'therapy_session_state';
@@ -847,23 +848,53 @@ const DashboardScreen = ({ navigation, route }) => {
                     if (therapyBand) {
                         if (autoConnectAttemptedRef.current) return;
                         autoConnectAttemptedRef.current = true;
-                        connectToGivenDevice(therapyBand, (success) => {
-                            if (success) {
-                                setIsConnected(true);
-                                setIsScanning(false);
-                                setScanModalVisible(false);
-                                lastModeUpdateSourceRef.current = 'user';
-                                lastTempUpdateSourceRef.current = 'user';
-                                ignoreDeviceUpdateUntilRef.current = Date.now() + cooldownDuration;
-                                setMode('Hot');
-                                setTemp(lastHotTempRef.current);
-                            } else {
-                                autoConnectAttemptedRef.current = false;
-                                setIsScanning(false);
-                                setScanModalVisible(false);
-                                Alert.alert("Connection Failed", "Could not connect to TherapyBand.");
-                            }
-                        });
+                        connectToGivenDevice(therapyBand, async (success) => {
+    if (success) {
+
+        try {
+            const savedName = await AsyncStorage.getItem('username');
+
+            const nameToSend =
+                savedName?.trim() ||
+                username ||
+                'Guest';
+
+            console.log('Sending username:', nameToSend);
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            await writeUserName(nameToSend);
+
+            console.log('Username sent successfully');
+        }
+        catch (err) {
+            console.log('Failed to send username:', err);
+        }
+
+        setIsConnected(true);
+        setIsScanning(false);
+        setScanModalVisible(false);
+
+        lastModeUpdateSourceRef.current = 'user';
+        lastTempUpdateSourceRef.current = 'user';
+
+        ignoreDeviceUpdateUntilRef.current =
+            Date.now() + cooldownDuration;
+
+        setMode('Hot');
+        setTemp(lastHotTempRef.current);
+
+    } else {
+        autoConnectAttemptedRef.current = false;
+        setIsScanning(false);
+        setScanModalVisible(false);
+
+        Alert.alert(
+            "Connection Failed",
+            "Could not connect to TherapyBand."
+        );
+    }
+});
                     } else {
                         // Keep scanning or timeout handled by scanForDevices
                     }
